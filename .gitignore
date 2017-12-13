@@ -3,3 +3,7 @@
 
 # build
 */build
+
+# receiver make
+receiver/*.java
+receiver/*.class

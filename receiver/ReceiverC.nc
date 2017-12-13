@@ -33,7 +33,8 @@ implementation {
     }
     event void SerialControl.stopDone(error_t err) {}
     event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
-        Temperature_Msg* rcvPayload, sndPayload;
+        Temperature_Msg* rcvPayload;
+        Temperature_Msg* sndPayload;
 
         call Leds.led1Toggle();
         if (len != sizeof(Temperature_Msg)) {
