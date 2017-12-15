@@ -1,58 +1,150 @@
 #include "Message.h"
 
-#define TIMER_PERIOD 2000
-
 module SenderC {
-    uses interface Boot;
-    uses interface Timer<TMilli>;
-    uses interface Leds;
-    uses interface Read<uint16_t>;
-    uses interface Packet;
-    uses interface AMSend;
-    uses interface SplitControl as RadioControl;
+    uses { 
+        interface Boot;
+        interface Timer<TMilli>;
+        interface Leds;
+        interface Read<uint16_t> as ReadTemperature;
+        interface Read<uint16_t> as ReadHumidity;
+        interface Read<uint16_t> as ReadLightIntensity;
+        interface Packet;
+        interface AMSend;
+        interface Receive;
+        interface SplitControl as RadioControl;
+    }
 }
 
 implementation {
-    bool busy;
-    message_t pkt;
+    bool sendBusy;
+    message_t sendBuf;
+    uint8_t singleReadCounter;              // counter for three sensors reading
+    uint8_t readCounter;                    // counter for 0~NREADINGS
+    uint8_t seqCounter;                     // simply increase by 1 when sending a packet
+
+    // current local state
+    Sensor_Msg local;
+
+    // Use LEDs to report various status issues.
+    void report_problem() { call Leds.led0Toggle(); }
+    void report_sent() { call Leds.led1Toggle(); }
+    void report_received() { call Leds.led2Toggle(); }
 
     event void Boot.booted() {
-        busy = FALSE;
-        call RadioControl.start();
+        sendBusy = FALSE;
+        seqCounter = 0;
+        local.interval = DEFAULT_INTERVAL;
+        local.nodeid = TOS_NODE_ID;
+        local.seqNumber = seqCounter;
+        if (call RadioControl.start() != SUCCESS)
+            report_problem();
     }
+
+    void startTimer() {
+        call Timer.startPeriodic(local.interval);
+        singleReadCounter = 0;
+        readCounter = 0;
+    }
+
     event void RadioControl.startDone(error_t err) {
         if (err == SUCCESS) {
-            call Timer.startPeriodic(TIMER_PERIOD);
+            startTimer();
         } else {
             call RadioControl.start();
         }
     }
     event void RadioControl.stopDone(error_t err) {}
+    
     event void Timer.fired() {
-        call Leds.led0Toggle();
-        call Read.read();
+        // send packet
+        if (readCounter == NREADINGS) {
+            if (!sendBusy) {
+                if(sizeof local <= call AMSend.maxPayloadLength()) {
+                    memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), &local, sizeof local);
+                    if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) == SUCCESS) {
+                        sendBusy = TRUE;
+                        report_sent();
+                    }
+                }
+                else
+                    report_problem();
+            }
+            readCounter = 0;
+            local.seqNumber = ++seqCounter;
+            // TODO: maybe a sync here?
+        }
+
+        // multi sensors read
+        if (call ReadTemperature.read() != SUCCESS)
+            report_problem();
+        if (call ReadHumidity.read() != SUCCESS)
+            report_problem();
+        if (call ReadLightIntensity.read() != SUCCESS)
+            report_problem();
     }
-    event void Read.readDone(error_t result, uint16_t val) {
-        Temperature_Msg* payload;
-        if (result == SUCCESS) {
-            if(busy == FALSE) {
-                payload = (Temperature_Msg*)(call Packet.getPayload(&pkt, sizeof(Temperature_Msg)));
 
-                if (payload == NULL) {
-                    return;
-                }
+    event void AMSend.sendDone(message_t* msg, error_t err) {
+        if (err == SUCCESS)
+            report_sent();
+        else
+            report_problem();
 
-                payload->temperature = val;
-                if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Temperature_Msg)) == SUCCESS) {
-                    busy = TRUE;
-                }
+        sendBusy = FALSE;
+    }
+
+    event void ReadTemperature.readDone(error_t err, uint16_t data) {
+        if (err == SUCCESS) {
+            if (readCounter < NREADINGS && singleReadCounter < SENSOR_TYPES) {
+                local.temperature[readCounter] = data;
+                singleReadCounter++;
+            }
+            if (singleReadCounter >= SENSOR_TYPES) {
+                readCounter++;
+                singleReadCounter = 0;
             }
         }
-    }
-    event void AMSend.sendDone(message_t* msg, error_t err) {
-        if (&pkt == msg) {
-            call Leds.led0Toggle();
-            busy = FALSE;
+        else {
+            data = 0xffff
+            report_problem();
         }
+    }
+
+    event void ReadHumidity.readDone(error_t err, uint16_t data) {
+        if (err == SUCCESS) {
+            if (readCounter < NREADINGS && singleReadCounter < SENSOR_TYPES) {
+                local.humidity[readCounter] = data;
+                singleReadCounter++;
+            }
+            if (singleReadCounter >= SENSOR_TYPES) {
+                readCounter++;
+                singleReadCounter = 0;
+            }
+        }
+        else {
+            data = 0xffff
+            report_problem();
+        }
+    }
+
+    event void ReadLightIntensity.readDone(error_t err, uint16_t data) {
+        if (err == SUCCESS) {
+            if (readCounter < NREADINGS && singleReadCounter < SENSOR_TYPES) {
+                local.lightIntensity[readCounter] = data;
+                singleReadCounter++;
+            }
+            if (singleReadCounter >= SENSOR_TYPES) {
+                readCounter++;
+                singleReadCounter = 0;
+            }
+        }
+        else {
+            data = 0xffff
+            report_problem();
+        }
+    }
+
+    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
+        // TODO: update interval
+        // TODO: time synchronization
     }
 }
