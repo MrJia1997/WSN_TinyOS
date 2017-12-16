@@ -40,32 +40,18 @@ implementation {
         Sensor_Msg* rcvPayload;
         Sensor_Msg* sndPayload;
 
-        call Leds.led1Toggle();
-        if (len != sizeof(Sensor_Msg)) {
-            report_problem()；
-            return NULL;
-        }
-
         rcvPayload = (Sensor_Msg*)payload;
         sndPayload = (Sensor_Msg*)(call Packet.getPayload(&pkt, sizeof(Sensor_Msg)));
 
         if (sndPayload == NULL) {
-            report_problem()；
             return NULL;
         }
-        memcpy(sndPayload->nodeid, rcvPayload->nodeid ,sizeof(rcvPayload->nodeid));
-        memcpy(sndPayload->interval, rcvPayload->interval ,sizeof(rcvPayload->interval));
-        memcpy(sndPayload->seqNumber, rcvPayload->seqNumber ,sizeof(rcvPayload->seqNumber));
-      
-        memcpy(sndPayload->collectTime, rcvPayload->collectTime ,sizeof(rcvPayload->collectTime));
-        memcpy(sndPayload->temperature, rcvPayload->temperature ,sizeof(rcvPayload->temperature));
-        memcpy(sndPayload->humidity, rcvPayload->humidity ,sizeof(rcvPayload->humidity));
-        memcpy(sndPayload->lightIntensity, rcvPayload->lightIntensity ,sizeof(rcvPayload->lightIntensity));
+        memcpy(sndPayload, rcvPayload ,sizeof(Sensor_Msg));
 
         if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Sensor_Msg)) == SUCCESS) {
             busy = TRUE;
+            call Leds.led2Toggle();
         }
-
         return msg;
     }
 
