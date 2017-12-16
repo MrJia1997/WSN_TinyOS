@@ -5,9 +5,9 @@ enum {
     AM_SENSOR_MSG = 85,
     AM_TIMESYNC_MSG = 95,
     AM_INTERVAL_MSG = 105,
-    NREADINGS = 3,
+    NREADINGS = 1,
     SENSOR_TYPES = 3,
-    DEFAULT_INTERVAL = 100
+    DEFAULT_INTERVAL = 500
 };
 
 typedef nx_struct Sensor_Msg {
