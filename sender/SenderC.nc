@@ -35,7 +35,8 @@ implementation {
         sendBusy = FALSE;
         seqCounter = 0;
         local.interval = DEFAULT_INTERVAL;
-        local.nodeid = TOS_NODE_ID;
+        // TODO: How to read nodeid
+        local.nodeid = 2;
         local.seqNumber = seqCounter;
         if (call RadioControl.start() != SUCCESS)
             report_problem();
@@ -74,14 +75,16 @@ implementation {
             local.seqNumber = ++seqCounter;
             // TODO: maybe a sync here?
         }
-
-        // multi sensors read
-        if (call ReadTemperature.read() != SUCCESS)
-            report_problem();
-        if (call ReadHumidity.read() != SUCCESS)
-            report_problem();
-        if (call ReadLightIntensity.read() != SUCCESS)
-            report_problem();
+        else {
+            local.collectTime[readCounter] = 12345;
+            // multi sensors read
+            if (call ReadTemperature.read() != SUCCESS)
+                report_problem();
+            if (call ReadHumidity.read() != SUCCESS)
+                report_problem();
+            if (call ReadLightIntensity.read() != SUCCESS)
+                report_problem();
+        }
     }
 
     event void AMSend.sendDone(message_t* msg, error_t err) {
@@ -105,7 +108,7 @@ implementation {
             }
         }
         else {
-            data = 0xffff
+            data = 0xffff;
             report_problem();
         }
     }
@@ -122,7 +125,7 @@ implementation {
             }
         }
         else {
-            data = 0xffff
+            data = 0xffff;
             report_problem();
         }
     }
@@ -139,7 +142,7 @@ implementation {
             }
         }
         else {
-            data = 0xffff
+            data = 0xffff;
             report_problem();
         }
     }
