@@ -10,7 +10,8 @@ module SenderC {
         interface Read<uint16_t> as ReadLightIntensity;
         interface Packet;
         interface AMSend;
-        interface Receive;
+        interface Receive as ReceiveTimeSync;
+        interface Receive as ReceiveInterval;
         interface SplitControl as RadioControl;
     }
 }
@@ -143,8 +144,18 @@ implementation {
         }
     }
 
-    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
-        // TODO: update interval
+    event message_t* ReceiveTimeSync.receive(message_t* msg, void* payload, uint8_t len) {
+        report_received();
         // TODO: time synchronization
     }
+
+    event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
+        report_received();
+        // TODO: update interval
+    }
+
+    // TODO: packet jump here
+    // better find all nodes in the network and send to only nodeid < TOS_NODE_ID
+    
+    // TODO: receive ack
 }

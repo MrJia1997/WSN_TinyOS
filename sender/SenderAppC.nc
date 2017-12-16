@@ -13,5 +13,7 @@ implementation {
     App.ReadHumidity -> Sensor0.Humidity;
     App.Packet -> ActiveMessageC;
     App.AMSend -> ActiveMessageC.AMSend[AM_SENSOR_MSG];
+    App.ReceiveTimeSync -> ActiveMessageC.Receive[AM_TIMESYNC_MSG];
+    App.ReceiveInterval -> ActiveMessageC.Receive[AM_INTERVAL_MSG];
     App.RadioControl -> ActiveMessageC;
 }
