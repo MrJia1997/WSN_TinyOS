@@ -8,8 +8,8 @@ implementation {
   App.Boot -> MainC.Boot;
   App.Leds -> LedsC.Leds;
   App.Packet -> SerialActiveMessageC;
-  App.AMSend -> SerialActiveMessageC.AMSend[AM_TEMPERATURE_MSG];
-  App.Receive -> ActiveMessageC.Receive[AM_TEMPERATURE_MSG];
+  App.AMSend -> SerialActiveMessageC.AMSend[AM_SENSOR_MSG];
+  App.Receive -> ActiveMessageC.Receive[AM_SENSOR_MSG];
   App.RadioControl -> ActiveMessageC;
   App.SerialControl -> SerialActiveMessageC;
 }

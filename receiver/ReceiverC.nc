@@ -15,6 +15,8 @@ implementation {
     bool busy;
     message_t pkt;
 
+    void report_problem() { call Leds.led0Toggle(); }
+
     event void Boot.booted() {
         busy = FALSE;
         call RadioControl.start();
@@ -25,37 +27,48 @@ implementation {
             call RadioControl.start();
         }
     }
-    event void RadioControl.stopDone(error_t err) {}
+    event void RadioControl.stopDone(error_t err) { }
+
     event void SerialControl.startDone(error_t err) {
         if (err != SUCCESS) {
             call SerialControl.start();
         }
     }
     event void SerialControl.stopDone(error_t err) {}
+    
     event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
-        Temperature_Msg* rcvPayload;
-        Temperature_Msg* sndPayload;
+        Sensor_Msg* rcvPayload;
+        Sensor_Msg* sndPayload;
 
         call Leds.led1Toggle();
-        if (len != sizeof(Temperature_Msg)) {
+        if (len != sizeof(Sensor_Msg)) {
+            report_problem()；
             return NULL;
         }
 
-        rcvPayload = (Temperature_Msg*)payload;
-        sndPayload = (Temperature_Msg*)(call Packet.getPayload(&pkt, sizeof(Temperature_Msg)));
+        rcvPayload = (Sensor_Msg*)payload;
+        sndPayload = (Sensor_Msg*)(call Packet.getPayload(&pkt, sizeof(Sensor_Msg)));
 
         if (sndPayload == NULL) {
+            report_problem()；
             return NULL;
         }
+        memcpy(sndPayload->nodeid, rcvPayload->nodeid ,sizeof(rcvPayload->nodeid));
+        memcpy(sndPayload->interval, rcvPayload->interval ,sizeof(rcvPayload->interval));
+        memcpy(sndPayload->seqNumber, rcvPayload->seqNumber ,sizeof(rcvPayload->seqNumber));
+      
+        memcpy(sndPayload->collectTime, rcvPayload->collectTime ,sizeof(rcvPayload->collectTime));
+        memcpy(sndPayload->temperature, rcvPayload->temperature ,sizeof(rcvPayload->temperature));
+        memcpy(sndPayload->humidity, rcvPayload->humidity ,sizeof(rcvPayload->humidity));
+        memcpy(sndPayload->lightIntensity, rcvPayload->lightIntensity ,sizeof(rcvPayload->lightIntensity));
 
-        sndPayload->temperature = rcvPayload->temperature;
-
-        if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Temperature_Msg)) == SUCCESS) {
+        if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Sensor_Msg)) == SUCCESS) {
             busy = TRUE;
         }
 
         return msg;
     }
+
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (&pkt == msg) {
             busy = FALSE;
