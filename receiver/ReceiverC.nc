@@ -9,18 +9,20 @@ module ReceiverC {
         interface Receive;
         interface SplitControl as RadioControl;
         interface SplitControl as SerialControl;
+        interface StdControl;
     }
 }
 implementation {
     bool busy;
     message_t pkt;
 
-    void report_problem() { call Leds.led0Toggle(); }
+    void report_problem() { call Leds.led2Toggle(); }
 
     event void Boot.booted() {
         busy = FALSE;
         call RadioControl.start();
         call SerialControl.start();
+        call StdControl.start();
     }
     event void RadioControl.startDone(error_t err) {
         if (err != SUCCESS) {
@@ -44,6 +46,7 @@ implementation {
         sndPayload = (Sensor_Msg*)(call Packet.getPayload(&pkt, sizeof(Sensor_Msg)));
 
         if (sndPayload == NULL) {
+            report_problem();
             return NULL;
         }
         memcpy(sndPayload, rcvPayload ,sizeof(Sensor_Msg));
