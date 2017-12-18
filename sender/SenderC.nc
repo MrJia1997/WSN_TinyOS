@@ -10,9 +10,10 @@ module SenderC {
         interface Read<uint16_t> as ReadLightIntensity;
         interface Packet;
         interface AMSend;
-        interface Receive as ReceiveTimeSync;
         interface Receive as ReceiveInterval;
         interface SplitControl as RadioControl;
+        interface GlobalTime<TMilli>;
+        interface StdControl;
     }
 }
 
@@ -22,6 +23,7 @@ implementation {
     uint8_t singleReadCounter;              // counter for three sensors reading
     uint8_t readCounter;                    // counter for 0~NREADINGS
     uint8_t seqCounter;                     // simply increase by 1 when sending a packet
+    uint32_t globalTime;
 
     // current local state
     Sensor_Msg local;
@@ -35,9 +37,9 @@ implementation {
         sendBusy = FALSE;
         seqCounter = 0;
         local.interval = DEFAULT_INTERVAL;
-        // TODO: How to read nodeid
-        local.nodeid = 2;
+        local.nodeid = TOS_NODE_ID;
         local.seqNumber = seqCounter;
+        call StdControl.start();
         if (call RadioControl.start() != SUCCESS)
             report_problem();
     }
@@ -73,10 +75,17 @@ implementation {
             }
             readCounter = 0;
             local.seqNumber = ++seqCounter;
-            // TODO: maybe a sync here?
         }
         else {
-            local.collectTime[readCounter] = 12345;
+            if (call GlobalTime.getGlobalTime(&globalTime) == SUCCESS) {
+                call Leds.led2Off();
+                local.collectTime[readCounter] = globalTime;
+            }
+            else {
+                call Leds.led2On();
+                local.collectTime[readCounter] = call GlobalTime.getLocalTime();
+            }
+            
             // multi sensors read
             if (call ReadTemperature.read() != SUCCESS)
                 report_problem();
@@ -145,11 +154,6 @@ implementation {
             data = 0xffff;
             report_problem();
         }
-    }
-
-    event message_t* ReceiveTimeSync.receive(message_t* msg, void* payload, uint8_t len) {
-        report_received();
-        // TODO: time synchronization
     }
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
