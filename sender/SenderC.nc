@@ -44,11 +44,11 @@ implementation {
     task void send() {
         if (headPos != tailPos) {
             if(sizeof local <= call AMSend.maxPayloadLength()) {
-                call PacketAcknowledgements.requestAck(&sendBuf);
                 memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
-                // TODO: Change addr
+                call PacketAcknowledgements.requestAck(&sendBuf);
                 sendBusy = TRUE;
-                if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) == SUCCESS) {
+                // TODO: Change addr
+                if (call AMSend.send(0, &sendBuf, sizeof local) == SUCCESS) {
                     report_sent();
                 }
                 else
