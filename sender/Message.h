@@ -10,7 +10,8 @@ enum {
     DEFAULT_INTERVAL = 50,
     DEFAULT_ACK_TIMEOUT = 2000,
     QUEUE_LENGTH = 50,
-    ROOT_ID = 0
+    RECEIVER_ID = 0,
+    FORWARDER_ID = 1
 };
 
 typedef nx_struct Sensor_Msg {
@@ -22,10 +23,6 @@ typedef nx_struct Sensor_Msg {
     nx_uint16_t humidity[NREADINGS];
     nx_uint16_t lightIntensity[NREADINGS];
 } Sensor_Msg;
-
-typedef nx_struct ACK_Msg {
-
-} ACK_Msg;
 
 typedef nx_struct Interval_Msg {
     nx_uint8_t version;

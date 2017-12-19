@@ -49,7 +49,7 @@ implementation {
                     report_problem();
                 sendBusy = TRUE;
                 // TODO: Change addr
-                if (call AMSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
+                if (call AMSend.send(FORWARDER_ID, &sendBuf, sizeof local) != SUCCESS) {
                     post send();
                 }                   
             }
@@ -200,6 +200,5 @@ implementation {
         // TODO: update interval
     }
 
-    // TODO: packet jump here
-    // better find all nodes in the network and send to only nodeid < TOS_NODE_ID
+    // TODO: better find all nodes in the network and send to only nodeid < TOS_NODE_ID
 }
