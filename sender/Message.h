@@ -5,9 +5,12 @@ enum {
     AM_SENSOR_MSG = 85,
     AM_ACK_MSG = 95,
     AM_INTERVAL_MSG = 105,
-    NREADINGS = 3,
+    NREADINGS = 5,
     SENSOR_TYPES = 3,
-    DEFAULT_INTERVAL = 500
+    DEFAULT_INTERVAL = 500,
+    DEFAULT_ACK_TIMEOUT = 2000,
+    QUEUE_LENGTH = 50,
+    WINDOW_SIZE = 20
 };
 
 typedef nx_struct Sensor_Msg {
@@ -25,6 +28,7 @@ typedef nx_struct ACK_Msg {
 } ACK_Msg;
 
 typedef nx_struct Interval_Msg {
-    // TODO: add update interval msg
+    nx_uint8_t version;
+    nx_uint16_t interval;
 } Interval_Msg;
 #endif
