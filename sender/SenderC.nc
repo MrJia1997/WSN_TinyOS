@@ -32,6 +32,11 @@ implementation {
     uint8_t headPos;                        // queue head pointer
     uint8_t tailPos;                        // queue tail pointer + 1
 
+    // Use LEDs to report various status issues.
+    void report_problem() { call Leds.led0Toggle(); }
+    void report_sent() { call Leds.led1Toggle(); }
+    void report_received() { call Leds.led2Toggle(); }
+
     // GBN implement
     uint8_t cal_pos(uint8_t pos, uint8_t alias) {
         return (pos + alias) >= QUEUE_LENGTH ? pos + alias : pos + alias - QUEUE_LENGTH;
@@ -62,11 +67,6 @@ implementation {
         singleReadCounter = 0;
         readCounter = 0;
     }
-
-    // Use LEDs to report various status issues.
-    void report_problem() { call Leds.led0Toggle(); }
-    void report_sent() { call Leds.led1Toggle(); }
-    void report_received() { call Leds.led2Toggle(); }
 
     event void Boot.booted() {
         // initialize status flags
@@ -102,18 +102,14 @@ implementation {
     event void TimerRead.fired() {
         // read data and add it to queue
         if (readCounter == NREADINGS) {
-            if(sizeof local <= call AMSend.maxPayloadLength()) {
-                // add to queue
-                localQueue[tailPos] = local;
-                tailPos = cal_pos(tailPos, 1);
-                if (tailPos == headPos)
-                    report_problem();
-                if (!sendBusy)
-                    post send();
-            }
-            else
+            // add to queue
+            localQueue[tailPos] = local;
+            tailPos = cal_pos(tailPos, 1);
+            if (tailPos == headPos)
                 report_problem();
-            
+            if (!sendBusy)
+                post send();
+            // reset read counter
             readCounter = 0;
         }
         else {
