@@ -37,13 +37,13 @@ implementation {
         return (pos + alias) >= QUEUE_LENGTH ? pos + alias : pos + alias - QUEUE_LENGTH;
     }
     task void send() {
-        if (!sendBusy && (headPos != tailPos)) {
+        if (headPos != tailPos) {
             if(sizeof local <= call AMSend.maxPayloadLength()) {
                 call PacketAcknowledgements.requestAck(&sendBuf);
                 memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
                 // TODO: Change addr
+                sendBusy = TRUE;
                 if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) == SUCCESS) {
-                    sendBusy = TRUE;
                     report_sent();
                 }
                 else
@@ -52,6 +52,8 @@ implementation {
             else
                 report_problem();
         }
+        else
+            sendBusy = FALSE;
     }
 
     // timer start
@@ -104,9 +106,10 @@ implementation {
                 // add to queue
                 localQueue[tailPos] = local;
                 tailPos = cal_pos(tailPos, 1);
-                post send();
                 if (tailPos == headPos)
                     report_problem();
+                if (!sendBusy)
+                    post send();
             }
             else
                 report_problem();
@@ -137,12 +140,9 @@ implementation {
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (err == SUCCESS) {
             report_sent();
-            sendBusy = FALSE;
             if(call PacketAcknowledgements.wasAcked(msg))
                 headPos = cal_pos(headPos, 1);
-                post send();
-            else
-                post send();
+            post send();
         }
         else
             report_problem();
