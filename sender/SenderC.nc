@@ -45,7 +45,7 @@ implementation {
         if (headPos != tailPos) {
             if(sizeof local <= call AMSend.maxPayloadLength()) {
                 memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
-                call PacketAcknowledgements.requestAck(&sendBuf);
+                // call PacketAcknowledgements.requestAck(&sendBuf);
                 sendBusy = TRUE;
                 // TODO: Change addr
                 if (call AMSend.send(0, &sendBuf, sizeof local) == SUCCESS) {
@@ -136,8 +136,8 @@ implementation {
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (err == SUCCESS) {
             report_sent();
-            if(call PacketAcknowledgements.wasAcked(msg))
-                headPos = cal_pos(headPos, 1);
+            // if(call PacketAcknowledgements.wasAcked(msg))
+            headPos = cal_pos(headPos, 1);
             post send();
         }
         else
