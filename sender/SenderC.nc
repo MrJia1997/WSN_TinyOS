@@ -49,7 +49,7 @@ implementation {
                     report_problem();
                 sendBusy = TRUE;
                 // TODO: Change addr
-                if (call AMSend.send(0, &sendBuf, sizeof local) != SUCCESS) {
+                if (call AMSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
                     post send();
                 }                   
             }

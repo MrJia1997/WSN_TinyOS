@@ -10,7 +10,7 @@ enum {
     DEFAULT_INTERVAL = 50,
     DEFAULT_ACK_TIMEOUT = 2000,
     QUEUE_LENGTH = 50,
-    WINDOW_SIZE = 20
+    ROOT_ID = 0
 };
 
 typedef nx_struct Sensor_Msg {
