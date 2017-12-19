@@ -23,7 +23,6 @@ implementation {
     message_t sendBuf;
     uint8_t singleReadCounter;              // counter for three sensors reading
     uint8_t readCounter;                    // counter for 0~NREADINGS
-    uint8_t seqCounter;                     // simply increase by 1 when sending a packet
     uint32_t globalTime;
 
     // current local state
@@ -33,7 +32,7 @@ implementation {
     uint8_t tailPos;                        // queue tail pointer + 1
 
     // Use LEDs to report various status issues.
-    void report_problem() { call Leds.led0Toggle(); }
+    void report_problem() { call Leds.led0On(); }
     void report_sent() { call Leds.led1Toggle(); }
     void report_received() { call Leds.led2Toggle(); }
 
@@ -44,21 +43,23 @@ implementation {
     task void send() {
         if (headPos != tailPos) {
             if(sizeof local <= call AMSend.maxPayloadLength()) {
+                call Leds.led1On();
                 memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
-                // call PacketAcknowledgements.requestAck(&sendBuf);
+                if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
+                    report_problem();
                 sendBusy = TRUE;
                 // TODO: Change addr
-                if (call AMSend.send(0, &sendBuf, sizeof local) == SUCCESS) {
-                    report_sent();
-                }
-                else
+                if (call AMSend.send(0, &sendBuf, sizeof local) != SUCCESS) {
                     post send();
+                }                   
             }
             else
                 report_problem();
         }
-        else
+        else {
+            call Leds.led1Off();
             sendBusy = FALSE;
+        }    
     }
 
     // timer start
@@ -71,7 +72,6 @@ implementation {
     event void Boot.booted() {
         // initialize status flags
         sendBusy = FALSE;
-        seqCounter = 0;
 
         // initialize queue
         headPos = 0;
@@ -80,7 +80,7 @@ implementation {
         // initialize local Sensor_Msg
         local.interval = DEFAULT_INTERVAL;
         local.nodeid = TOS_NODE_ID;
-        local.seqNumber = seqCounter;
+        local.seqNumber = 0;
         
         // start time sync service
         call StdControl.start();
@@ -105,6 +105,7 @@ implementation {
             // add to queue
             localQueue[tailPos] = local;
             tailPos = cal_pos(tailPos, 1);
+            local.seqNumber++;
             if (tailPos == headPos)
                 report_problem();
             if (!sendBusy)
@@ -135,9 +136,8 @@ implementation {
 
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (err == SUCCESS) {
-            report_sent();
-            // if(call PacketAcknowledgements.wasAcked(msg))
-            headPos = cal_pos(headPos, 1);
+            if(call PacketAcknowledgements.wasAcked(msg))
+                headPos = cal_pos(headPos, 1);
             post send();
         }
         else
