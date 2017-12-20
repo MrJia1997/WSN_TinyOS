@@ -197,20 +197,31 @@ implementation {
     }
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
+        Interval_Msg *rcvPayload;
         report_received();
-        // TODO: update interval
+        // update interval
+        if (len != sizeof(Interval_Msg)) {
+            report_problem();
+            report_received();
+            return NULL;
+        }
+        rcvPayload = (Interval_Msg*)payload;
+        local.interval = rcvPayload->interval;
+        start_read_timer();
+
+        report_received();
+        return msg;
     }
 
     event message_t* ReceiveSensorMsg.receive(message_t* msg, void* payload, uint8_t len) {
+        Sensor_Msg *rcvPayload;
         report_received();
-
         if (len != sizeof(Sensor_Msg)) {
             report_problem();
             report_received();
             return NULL;
         }
-        
-        Sensor_Msg* rcvPayload = (Sensor_Msg*)payload;
+        rcvPayload = (Sensor_Msg*)payload;
         // add to queue
         // TODO: need test
         memcpy(localQueue + tailPos, rcvPayload, sizeof(Sensor_Msg));
@@ -221,6 +232,7 @@ implementation {
             post send();
         
         report_received();
+        return msg;
     }
     // better find all nodes in the network and send to only nodeid < TOS_NODE_ID
 }
