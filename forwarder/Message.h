@@ -24,7 +24,6 @@ typedef nx_struct Sensor_Msg {
 } Sensor_Msg;
 
 typedef nx_struct Interval_Msg {
-    nx_uint8_t version;
     nx_uint16_t interval;
 } Interval_Msg;
 #endif

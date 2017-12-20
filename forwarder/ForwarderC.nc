@@ -198,7 +198,19 @@ implementation {
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
         report_received();
-        // TODO: update interval
+        
+        // update interval
+        if (len != sizeof(Interval_Msg)) {
+            report_problem();
+            report_received();
+            return NULL;
+        }
+
+        Interval_Msg* rcvPayload = (Interval_Msg*)payload;
+        local.interval = rcvPayload->interval;
+        start_read_timer();
+
+        report_received();
     }
 
     event message_t* ReceiveSensorMsg.receive(message_t* msg, void* payload, uint8_t len) {
