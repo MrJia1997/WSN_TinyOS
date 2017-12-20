@@ -3,12 +3,13 @@
 module SenderC {
     uses { 
         interface Boot;
-        interface Timer<TMilli>;
+        interface Timer<TMilli> as TimerRead;
         interface Leds;
         interface Read<uint16_t> as ReadTemperature;
         interface Read<uint16_t> as ReadHumidity;
         interface Read<uint16_t> as ReadLightIntensity;
         interface Packet;
+        interface PacketAcknowledgements;
         interface AMSend;
         interface Receive as ReceiveInterval;
         interface SplitControl as RadioControl;
@@ -22,61 +23,98 @@ implementation {
     message_t sendBuf;
     uint8_t singleReadCounter;              // counter for three sensors reading
     uint8_t readCounter;                    // counter for 0~NREADINGS
-    uint8_t seqCounter;                     // simply increase by 1 when sending a packet
     uint32_t globalTime;
 
     // current local state
     Sensor_Msg local;
+    Sensor_Msg localQueue[QUEUE_LENGTH];
+    uint8_t headPos;                        // queue head pointer
+    uint8_t tailPos;                        // queue tail pointer + 1
 
     // Use LEDs to report various status issues.
-    void report_problem() { call Leds.led0Toggle(); }
+    void report_problem() { call Leds.led0On(); }
     void report_sent() { call Leds.led1Toggle(); }
     void report_received() { call Leds.led2Toggle(); }
 
-    event void Boot.booted() {
-        sendBusy = FALSE;
-        seqCounter = 0;
-        local.interval = DEFAULT_INTERVAL;
-        local.nodeid = TOS_NODE_ID;
-        local.seqNumber = seqCounter;
-        call StdControl.start();
-        if (call RadioControl.start() != SUCCESS)
-            report_problem();
+    // GBN implement
+    uint8_t cal_pos(uint8_t pos, uint8_t alias) {
+        return (pos + alias) >= QUEUE_LENGTH ? pos + alias : pos + alias - QUEUE_LENGTH;
+    }
+    task void send() {
+        if (headPos != tailPos) {
+            if(sizeof local <= call AMSend.maxPayloadLength()) {
+                call Leds.led1On();
+                memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
+                if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
+                    report_problem();
+                sendBusy = TRUE;
+                // TODO: Change addr
+                if (call AMSend.send(FORWARDER_ID, &sendBuf, sizeof local) != SUCCESS) {
+                    post send();
+                }                   
+            }
+            else
+                report_problem();
+        }
+        else {
+            call Leds.led1Off();
+            sendBusy = FALSE;
+        }    
     }
 
-    void startTimer() {
-        call Timer.startPeriodic(local.interval);
+    // timer start
+    void start_read_timer() {
+        call TimerRead.startPeriodic(local.interval);
         singleReadCounter = 0;
         readCounter = 0;
     }
 
+    event void Boot.booted() {
+        // initialize status flags
+        sendBusy = FALSE;
+
+        // initialize queue
+        headPos = 0;
+        tailPos = 0;
+
+        // initialize local Sensor_Msg
+        local.interval = DEFAULT_INTERVAL;
+        local.nodeid = TOS_NODE_ID;
+        local.seqNumber = 0;
+        
+        // start time sync service
+        call StdControl.start();
+
+        // start radio service
+        if (call RadioControl.start() != SUCCESS)
+            report_problem();
+    }
+
     event void RadioControl.startDone(error_t err) {
         if (err == SUCCESS) {
-            startTimer();
+            start_read_timer();
         } else {
             call RadioControl.start();
         }
     }
     event void RadioControl.stopDone(error_t err) {}
     
-    event void Timer.fired() {
-        // send packet
+    event void TimerRead.fired() {
+        // read data and add it to queue
         if (readCounter == NREADINGS) {
-            if (!sendBusy) {
-                if(sizeof local <= call AMSend.maxPayloadLength()) {
-                    memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), &local, sizeof local);
-                    if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) == SUCCESS) {
-                        sendBusy = TRUE;
-                        report_sent();
-                    }
-                }
-                else
-                    report_problem();
-            }
+            // add to queue
+            localQueue[tailPos] = local;
+            tailPos = cal_pos(tailPos, 1);
+            local.seqNumber++;
+            if (tailPos == headPos)
+                report_problem();
+            if (!sendBusy)
+                post send();
+            // reset read counter
             readCounter = 0;
-            local.seqNumber = ++seqCounter;
         }
         else {
+            // time sync
             if (call GlobalTime.getGlobalTime(&globalTime) == SUCCESS) {
                 call Leds.led2Off();
                 local.collectTime[readCounter] = globalTime;
@@ -97,12 +135,13 @@ implementation {
     }
 
     event void AMSend.sendDone(message_t* msg, error_t err) {
-        if (err == SUCCESS)
-            report_sent();
+        if (err == SUCCESS) {
+            if(call PacketAcknowledgements.wasAcked(msg))
+                headPos = cal_pos(headPos, 1);
+            post send();
+        }
         else
             report_problem();
-
-        sendBusy = FALSE;
     }
 
     event void ReadTemperature.readDone(error_t err, uint16_t data) {
@@ -157,12 +196,19 @@ implementation {
     }
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
+        Interval_Msg* rcvPayload;
         report_received();
-        // TODO: update interval
+        // update interval
+        if (len != sizeof(Interval_Msg)) {
+            report_problem();
+            report_received();
+            return NULL;
+        }
+        rcvPayload = (Interval_Msg*)payload;
+        local.interval = rcvPayload->interval;
+        start_read_timer();
+        report_received();
     }
 
-    // TODO: packet jump here
-    // better find all nodes in the network and send to only nodeid < TOS_NODE_ID
-    
-    // TODO: receive ack
+    // TODO: better find all nodes in the network and send to only nodeid < TOS_NODE_ID
 }
