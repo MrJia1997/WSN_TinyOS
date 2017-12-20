@@ -7,7 +7,11 @@ enum {
     AM_INTERVAL_MSG = 105,
     NREADINGS = 3,
     SENSOR_TYPES = 3,
-    DEFAULT_INTERVAL = 500
+    DEFAULT_INTERVAL = 50,
+    DEFAULT_ACK_TIMEOUT = 2000,
+    QUEUE_LENGTH = 50,
+    RECEIVER_ID = 0,
+    FORWARDER_ID = 1
 };
 
 typedef nx_struct Sensor_Msg {
@@ -20,11 +24,8 @@ typedef nx_struct Sensor_Msg {
     nx_uint16_t lightIntensity[NREADINGS];
 } Sensor_Msg;
 
-typedef nx_struct ACK_Msg {
-
-} ACK_Msg;
-
 typedef nx_struct Interval_Msg {
-    // TODO: add update interval msg
+    nx_uint8_t version;
+    nx_uint16_t interval;
 } Interval_Msg;
 #endif
