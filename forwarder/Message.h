@@ -9,7 +9,7 @@ enum {
     SENSOR_TYPES = 3,
     DEFAULT_INTERVAL = 50,
     DEFAULT_ACK_TIMEOUT = 2000,
-    QUEUE_LENGTH = 50,
+    QUEUE_LENGTH = 60,
     RECEIVER_ID = 0
 };
 
