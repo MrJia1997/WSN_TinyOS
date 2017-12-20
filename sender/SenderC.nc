@@ -196,20 +196,17 @@ implementation {
     }
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
+        Interval_Msg* rcvPayload;
         report_received();
-        
-        // // update interval
-        // if (len != sizeof(Interval_Msg)) {
-        //     report_problem();
-        //     report_received();
-        //     return NULL;
-        // }
-
-        // Interval_Msg* rcvPayload;
-        // rcvPayload = (Interval_Msg*)payload;
-        // local.interval = rcvPayload->interval;
-        // start_read_timer();
-
+        // update interval
+        if (len != sizeof(Interval_Msg)) {
+            report_problem();
+            report_received();
+            return NULL;
+        }
+        rcvPayload = (Interval_Msg*)payload;
+        local.interval = rcvPayload->interval;
+        start_read_timer();
         report_received();
     }
 
