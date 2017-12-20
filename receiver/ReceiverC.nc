@@ -6,7 +6,8 @@ module ReceiverC {
         interface Leds;
         interface Packet;
         interface AMSend;
-        interface Receive;
+        interface Receive as RadioReceive;
+        interface Receive as SerialReceive;
         interface SplitControl as RadioControl;
         interface SplitControl as SerialControl;
         interface StdControl;
@@ -38,7 +39,7 @@ implementation {
     }
     event void SerialControl.stopDone(error_t err) {}
     
-    event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
+    event message_t* RadioReceive.receive(message_t* msg, void* payload, uint8_t len) {
         Sensor_Msg* rcvPayload;
         Sensor_Msg* sndPayload;
 
