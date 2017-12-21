@@ -30,6 +30,7 @@ implementation {
     Sensor_Msg localQueue[QUEUE_LENGTH];
     uint8_t headPos;                        // queue head pointer
     uint8_t tailPos;                        // queue tail pointer + 1
+    bool queueFull;
 
     // Use LEDs to report various status issues.
     void report_problem() { call Leds.led0On(); }
@@ -41,7 +42,7 @@ implementation {
         return (pos + alias) >= QUEUE_LENGTH ? pos + alias : pos + alias - QUEUE_LENGTH;
     }
     task void send() {
-        if (headPos != tailPos) {
+        if (headPos != tailPos || queueFull) {
             if(sizeof local <= call AMSend.maxPayloadLength()) {
                 call Leds.led1On();
                 memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
@@ -76,6 +77,7 @@ implementation {
         // initialize queue
         headPos = 0;
         tailPos = 0;
+        queueFull = FALSE;
 
         // initialize local Sensor_Msg
         local.interval = DEFAULT_INTERVAL;
@@ -100,14 +102,19 @@ implementation {
     event void RadioControl.stopDone(error_t err) {}
     
     event void TimerRead.fired() {
+        if (queueFull)
+            return;
+        
         // read data and add it to queue
         if (readCounter == NREADINGS) {
             // add to queue
             localQueue[tailPos] = local;
             tailPos = cal_pos(tailPos, 1);
             local.seqNumber++;
-            if (tailPos == headPos)
+            if (tailPos == headPos) {
+                queueFull = TRUE;
                 report_problem();
+            }
             if (!sendBusy)
                 post send();
             // reset read counter
@@ -136,8 +143,10 @@ implementation {
 
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (err == SUCCESS) {
-            if(call PacketAcknowledgements.wasAcked(msg))
+            if(call PacketAcknowledgements.wasAcked(msg)) {
                 headPos = cal_pos(headPos, 1);
+                queueFull = FALSE;
+            }
             post send();
         }
         else
