@@ -1,0 +1,3 @@
+COMPONENT=StorageAppC
+
+include $(MAKERULES)
