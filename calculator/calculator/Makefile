@@ -1,0 +1,2 @@
+COMPONENT=CalAppC
+include $(MAKERULES)

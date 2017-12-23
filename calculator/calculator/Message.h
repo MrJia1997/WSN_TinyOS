@@ -2,16 +2,17 @@
 #define MESSAGE_H
 
 enum {
-    AM_DATA_MSG = 6,
-    AM_RESULT_MSG = 20,
-    AM_ACK_MSG = 30,
-    REDUCER_ID = 0
+    AM_RANDOM_MSG = 6,
+    AM_RESULT_MSG = 111,
+    AM_SUPPORT_MSG = 147,
+    DATA_SIZE = 2000,
+    GROUP_ID = 21
 };
 
-typedef nx_struct Data_Msg {
+typedef nx_struct Random_Msg {
     nx_uint16_t sequence_number;
     nx_uint32_t random_integer;
-} Data_Msg;
+} Random_Msg;
 
 typedef nx_struct Result_Msg {
     nx_uint8_t group_id;
@@ -22,7 +23,4 @@ typedef nx_struct Result_Msg {
     nx_uint32_t median;
 } Result_Msg;
 
-typedef nx_struct Ack_Msg {
-    nx_uint8_t group_id;
-} Ack_Msg;
 #endif

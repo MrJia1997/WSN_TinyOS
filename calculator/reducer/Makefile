@@ -1,3 +1,0 @@
-COMPONENT=ReducerAppC
-
-include $(MAKERULES)
