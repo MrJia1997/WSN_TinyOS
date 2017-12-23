@@ -12,6 +12,7 @@ module SenderC {
         interface PacketAcknowledgements;
         interface AMSend;
         interface Receive as ReceiveInterval;
+        interface Receive as ReceiveSensorMsg;
         interface SplitControl as RadioControl;
         interface GlobalTime<TMilli>;
         interface StdControl;
@@ -104,7 +105,7 @@ implementation {
     event void TimerRead.fired() {
         if (queueFull)
             return;
-        
+
         // read data and add it to queue
         if (readCounter == NREADINGS) {
             // add to queue
@@ -124,7 +125,6 @@ implementation {
             if (singleReadCounter != 0) {
                 return;
             }
-            
             // time sync
             if (call GlobalTime.getGlobalTime(&globalTime) == SUCCESS) {
                 call Leds.led2Off();
@@ -151,6 +151,7 @@ implementation {
                 headPos = cal_pos(headPos, 1);
                 queueFull = FALSE;
             }
+                
             post send();
         }
         else
@@ -209,7 +210,7 @@ implementation {
     }
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
-        Interval_Msg* rcvPayload;
+        Interval_Msg *rcvPayload;
         report_received();
         // update interval
         if (len != sizeof(Interval_Msg)) {
@@ -219,9 +220,37 @@ implementation {
         }
         rcvPayload = (Interval_Msg*)payload;
         local.interval = rcvPayload->interval;
+        call TimerRead.stop();
         start_read_timer();
+
         report_received();
+        return msg;
     }
 
-    // TODO: better find all nodes in the network and send to only nodeid < TOS_NODE_ID
+    event message_t* ReceiveSensorMsg.receive(message_t* msg, void* payload, uint8_t len) {
+        Sensor_Msg *rcvPayload;
+        report_received();
+        if (queueFull)
+            return NULL;
+        if (len != sizeof(Sensor_Msg)) {
+            report_problem();
+            report_received();
+            return NULL;
+        }
+        rcvPayload = (Sensor_Msg*)payload;
+        // add to queue
+        // TODO: need test
+        memcpy(localQueue + tailPos, rcvPayload, sizeof(Sensor_Msg));
+        tailPos = cal_pos(tailPos, 1);
+        if (tailPos == headPos) {
+            queueFull = TRUE;
+            report_problem();
+        }
+        if (!sendBusy)
+            post send();
+        
+        report_received();
+        return msg;
+    }
+    // better find all nodes in the network and send to only nodeid < TOS_NODE_ID
 }

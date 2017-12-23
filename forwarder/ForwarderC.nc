@@ -220,6 +220,7 @@ implementation {
         }
         rcvPayload = (Interval_Msg*)payload;
         local.interval = rcvPayload->interval;
+        call TimerRead.stop();
         start_read_timer();
 
         report_received();
@@ -229,6 +230,8 @@ implementation {
     event message_t* ReceiveSensorMsg.receive(message_t* msg, void* payload, uint8_t len) {
         Sensor_Msg *rcvPayload;
         report_received();
+        if (queueFull)
+            return NULL;
         if (len != sizeof(Sensor_Msg)) {
             report_problem();
             report_received();
@@ -239,8 +242,10 @@ implementation {
         // TODO: need test
         memcpy(localQueue + tailPos, rcvPayload, sizeof(Sensor_Msg));
         tailPos = cal_pos(tailPos, 1);
-        if (tailPos == headPos)
+        if (tailPos == headPos) {
+            queueFull = TRUE;
             report_problem();
+        }
         if (!sendBusy)
             post send();
         
