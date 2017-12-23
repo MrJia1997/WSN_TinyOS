@@ -93,6 +93,7 @@ implementation {
             report_problem();
     }
 
+
     event void RadioControl.startDone(error_t err) {
         if (err == SUCCESS) {
             start_read_timer();
@@ -100,6 +101,8 @@ implementation {
             call RadioControl.start();
         }
     }
+
+    
     event void RadioControl.stopDone(error_t err) {}
     
     event void TimerRead.fired() {
