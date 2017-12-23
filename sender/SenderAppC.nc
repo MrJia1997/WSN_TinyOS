@@ -28,5 +28,6 @@ implementation {
     App.PacketAcknowledgements -> ActiveMessageC;
     App.AMSend -> ActiveMessageC.AMSend[AM_SENSOR_MSG];
     App.ReceiveInterval -> ActiveMessageC.Receive[AM_INTERVAL_MSG];
+    App.ReceiveSensorMsg -> ActiveMessageC.Receive[AM_SENSOR_MSG];
     App.RadioControl -> ActiveMessageC;
 }
