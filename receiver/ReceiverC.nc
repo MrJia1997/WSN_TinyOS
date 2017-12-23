@@ -63,21 +63,21 @@ implementation {
     }
 
      event message_t* SerialReceive.receive(message_t* msg, void* payload, uint8_t len) {
-        Sensor_Msg* rcvPayload;
-        Sensor_Msg* sndPayload;
-
-        rcvPayload = (Sensor_Msg*)payload;
-        sndPayload = (Sensor_Msg*)(call Packet.getPayload(&pkt, sizeof(Sensor_Msg)));
+        Interval_Msg* rcvPayload;
+        Interval_Msg* sndPayload;
+        call Leds.led1Toggle();
+        rcvPayload = (Interval_Msg*)payload;
+        sndPayload = (Interval_Msg*)(call Packet.getPayload(&pkt, sizeof(Interval_Msg)));
 
         if (sndPayload == NULL) {
             report_problem();
             return NULL;
         }
-        memcpy(sndPayload, rcvPayload ,sizeof(Sensor_Msg));
+        memcpy(sndPayload, rcvPayload ,sizeof(Interval_Msg));
 
-        if (call RadioSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Sensor_Msg)) == SUCCESS) {
+        if (call RadioSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(Interval_Msg)) == SUCCESS) {
             RadioBusy = TRUE;
-            call Leds.led2Toggle();
+            call Leds.led0Toggle();
         }
         return msg;
     }
@@ -85,7 +85,6 @@ implementation {
     event void RadioSend.sendDone(message_t* msg, error_t err) {
         if (&pkt == msg) {
             RadioBusy = FALSE;
-            call Leds.led1Toggle();
         }
     }
 
