@@ -3,9 +3,10 @@
 
 enum {
     AM_DATA_MSG = 6,
-    AM_RESULT_MSG = 20,
-    AM_ACK_MSG = 30,
-    REDUCER_ID = 0
+    AM_MYDATA_MSG = 149,
+    AM_REQUEST_MSG = 40,
+    GROUP_ID = 21,
+    DATA_NUMBER = 2000
 };
 
 typedef nx_struct Data_Msg {
@@ -13,16 +14,8 @@ typedef nx_struct Data_Msg {
     nx_uint32_t random_integer;
 } Data_Msg;
 
-typedef nx_struct Result_Msg {
-    nx_uint8_t group_id;
-    nx_uint32_t max;
-    nx_uint32_t min;
-    nx_uint32_t sum;
-    nx_uint32_t average;
-    nx_uint32_t median;
-} Result_Msg;
+typedef nx_struct Request_Msg {
+    nx_uint16_t sequence_number;
+} Request_Msg;
 
-typedef nx_struct Ack_Msg {
-    nx_uint8_t group_id;
-} Ack_Msg;
 #endif
