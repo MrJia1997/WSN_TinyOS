@@ -121,6 +121,10 @@ implementation {
             readCounter = 0;
         }
         else {
+            if (singleReadCounter != 0) {
+                return;
+            }
+            
             // time sync
             if (call GlobalTime.getGlobalTime(&globalTime) == SUCCESS) {
                 call Leds.led2Off();
