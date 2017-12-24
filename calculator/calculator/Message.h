@@ -6,13 +6,19 @@ enum {
     AM_RESULT_MSG = 111,
     AM_SUPPORT_MSG = 147,
     DATA_SIZE = 2000,
-    GROUP_ID = 21
+    LOST_SEQ_LENGTH = 200,
+    GROUP_ID = 21,
+    ROOT_ID = 0
 };
 
 typedef nx_struct Random_Msg {
     nx_uint16_t sequence_number;
     nx_uint32_t random_integer;
 } Random_Msg;
+
+typedef nx_struct Support_Msg {
+    nx_uint16_t sequence_number;
+} Support_Msg;
 
 typedef nx_struct Result_Msg {
     nx_uint8_t group_id;

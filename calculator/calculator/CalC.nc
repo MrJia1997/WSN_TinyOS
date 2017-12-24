@@ -6,8 +6,10 @@ module CalC {
         interface Leds;
         interface Packet;
         interface PacketAcknowledgements;
-        interface AMSend;
+        interface AMSend as ResultSend;
+        interface AMSend as SupportSend;
         interface Receive as ReceiveBase;
+        interface Receive as ReceiveSupport;
         interface SplitControl as RadioControl;
     }
 }
@@ -17,6 +19,7 @@ implementation {
     message_t sendBuf;
     
     Result_Msg local;
+    Support_Msg localSupport;
 
     uint32_t min;
     uint32_t max;
@@ -33,7 +36,7 @@ implementation {
     bool isFinish;
 
     uint32_t data[DATA_SIZE];
-    uint16_t lostSeq[100];
+    uint16_t lostSeq[LOST_SEQ_LENGTH];
     uint8_t lostSeqHead;
     uint8_t lostSeqTail;
 
@@ -108,7 +111,7 @@ implementation {
             // if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
             //     call Leds.led0On();
             sendBusy = TRUE;
-            if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) != SUCCESS) {
+            if (call ResultSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
                 sendBusy = FALSE;
                 post send();
             }                
@@ -116,7 +119,17 @@ implementation {
     }
 
     task void getLost() {
-        // TODO: get lost packet
+        // get lost packet
+        if (!sendBusy) {
+            sendBusy = TRUE;
+            call Leds.led1Toggle();
+            localSupport.sequence_number = lostSeq[lostSeqHead];
+            memcpy(call SupportSend.getPayload(&sendBuf, sizeof(localSupport)), &localSupport, sizeof localSupport);
+            if (call SupportSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) != SUCCESS) {
+                sendBusy = FALSE;
+                post getLost();
+            }
+        }
     }
 
     event void Boot.booted() {
@@ -152,7 +165,7 @@ implementation {
     void lostSeqPush(uint16_t sequence) {
         if (data[sequence - 1] == 0xFFFFFFFF) {
             lostSeq[lostSeqTail] = sequence;
-            lostSeqTail++;
+            lostSeqTail = (lostSeqTail + 1) % LOST_SEQ_LENGTH;
         }
     }
 
@@ -207,8 +220,8 @@ implementation {
             findMedian();
             isFinish = TRUE;
             call Leds.led1Toggle();
-            memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), &local, sizeof local);
-            if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) != SUCCESS) {
+            memcpy(call ResultSend.getPayload(&sendBuf, sizeof(local)), &local, sizeof local);
+            if (call ResultSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
                 sendBusy = FALSE;
                 post send();
             }
@@ -218,70 +231,32 @@ implementation {
     event message_t* ReceiveBase.receive(message_t* msg, void* payload, uint8_t len) {
         Random_Msg *rcvPayload;
 
-        // if (isFinish) {
-        //     return NULL;
-        // }
-
         call Leds.led2Toggle();
-        // if (len != sizeof(Random_Msg)) {
-        //     call Leds.led0On();
-        //     return NULL;
-        // }
-
+        
         rcvPayload = (Random_Msg*)payload;
         seq = rcvPayload -> sequence_number;
         number = rcvPayload -> random_integer;
-        
-        // // Handle sequence number
-        // if (firstSeq == 0xFFFF) {
-        //     firstSeq = seq;
-        // }
-        // else {
-        //     if (seq != lastSeq + 1 && seq != (lastSeq - 1999)) {
-        //         if (seq > lastSeq) {
-        //             for (i = lastSeq + 1; i < seq; i++) { lostSeqPush(i); }
-        //         }
-        //         else {
-        //             for (i = lastSeq + 1; i <= DATA_SIZE; i++) { lostSeqPush(i); }
-        //             for (i = 1; i < seq; i++) { lostSeqPush(i); }
-        //         }
-        //         call Leds.led0Toggle();
-        //         post getLost();
-        //     }
-        // }
-        // lastSeq = seq;
-        
-        // // data process
-        // if (data[seq - 1] == 0xFFFFFFFF) {
-        //     data[seq - 1] = temp;
-        //     count++;
-        //     sum += temp;
-        //     if (temp > max) { max = temp; }
-        //     if (temp < min) { min = temp; }
-        // }
-        
-        // if (count == DATA_SIZE) {
-        //     local.group_id = GROUP_ID;
-        //     local.min = min;
-        //     local.max = max;
-        //     local.sum = sum;
-        //     local.average = sum / count;
-        //     // local.median = (data[999] + data[1000]) / 2;
-        //     findMedian();
-        //     isFinish = TRUE;
-        //     call Leds.led2Toggle();
-        //     if (call AMSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) != SUCCESS) {
-        //         sendBusy = FALSE;
-        //         post send();
-        //     }
-        // }
+
         post handleReceive();
         return msg;
     }
 
-    event void AMSend.sendDone(message_t* msg, error_t err) {
+    event message_t* ReceiveSupport.receive(message_t* msg, void* payload, uint8_t len) {
+        Random_Msg *rcvPayload;
+
+        call Leds.led2Toggle();
+
+        rcvPayload = (Random_Msg*)payload;
+        seq = rcvPayload -> sequence_number;
+        number = rcvPayload -> random_integer;
+
+        post handleReceive();
+        return msg;
+    }
+
+    event void ResultSend.sendDone(message_t* msg, error_t err) {
+        sendBusy = FALSE;
         if (err == SUCCESS) {
-            sendBusy = FALSE;
             // if(call PacketAcknowledgements.wasAcked(msg) != SUCCESS) {
             //     post send();
             // }
@@ -289,6 +264,19 @@ implementation {
         }
         else {
             post send();
+        }
+    }
+
+    event void SupportSend.sendDone(message_t* msg, error_t err) {
+        sendBusy = FALSE;
+        if (err == SUCCESS) {
+            call Leds.led1Toggle();
+            lostSeqHead = (lostSeqHead + 1) % LOST_SEQ_LENGTH;
+            if (lostSeqHead != lostSeqTail) 
+                post getLost();
+        }
+        else {
+            post getLost();
         }
     }
 }
