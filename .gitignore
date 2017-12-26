@@ -3,6 +3,7 @@
 
 # build
 */build
+calculator/*/build
 
 # receiver make
 receiver/*.java
