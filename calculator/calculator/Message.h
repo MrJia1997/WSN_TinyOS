@@ -2,11 +2,13 @@
 #define MESSAGE_H
 
 enum {
-    AM_RANDOM_MSG = 6,
-    AM_RESULT_MSG = 111,
+    AM_RANDOM_MSG = 243,
+    AM_RESULT_MSG = 97,
     AM_SUPPORT_MSG = 147,
+    AM_SUPPORT_DATA_MSG = 149,
     DATA_SIZE = 2000,
     LOST_SEQ_LENGTH = 200,
+    STORAGE = 1,    // TODO: to be changed into 2
     GROUP_ID = 21,
     ROOT_ID = 0
 };
