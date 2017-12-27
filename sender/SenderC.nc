@@ -1,6 +1,6 @@
 #include "Message.h"
 
-module SenderC {
+module ForwarderC {
     uses { 
         interface Boot;
         interface Timer<TMilli> as TimerRead;
@@ -228,16 +228,15 @@ implementation {
         }
         rcvPayload = (Interval_Msg*)payload;
         local.interval = rcvPayload->interval;
-        report_received();
-        call TimerRead.stop();
-        start_read_timer();
+        
         sndPayload = (Ack_Interval_Msg*)(call Packet.getPayload(&sendBuf, sizeof(Ack_Interval_Msg)));
         sndPayload -> isReceived = 1;
-        sendBusy = TRUE;
         if (call IntervalAckSend.send(ROOT_ID, &sendBuf, sizeof(Ack_Interval_Msg)) != SUCCESS) {
             call Leds.led0Toggle();
         }
-        
+
+        call TimerRead.stop();
+        start_read_timer();
         return msg;
     }
 
