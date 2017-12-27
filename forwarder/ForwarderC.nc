@@ -10,7 +10,8 @@ module ForwarderC {
         interface Read<uint16_t> as ReadLightIntensity;
         interface Packet;
         interface PacketAcknowledgements;
-        interface AMSend;
+        interface AMSend as DataSend;
+        interface AMSend as IntervalAckSend;
         interface Receive as ReceiveInterval;
         interface Receive as ReceiveSensorMsg;
         interface SplitControl as RadioControl;
@@ -44,16 +45,16 @@ implementation {
     }
     task void send() {
         if (headPos != tailPos || queueFull) {
-            if(sizeof local <= call AMSend.maxPayloadLength()) {
+            if(sizeof local <= call DataSend.maxPayloadLength()) {
                 call Leds.led1On();
-                memcpy(call AMSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
+                memcpy(call DataSend.getPayload(&sendBuf, sizeof(local)), localQueue + headPos, sizeof local);
                 if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
                     report_problem();
                 sendBusy = TRUE;
                 // TODO: Change addr
-                if (call AMSend.send(RECEIVER_ID, &sendBuf, sizeof local) != SUCCESS) {
+                if (call DataSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
                     post send();
-                }                   
+                }             
             }
             else
                 report_problem();
@@ -145,7 +146,7 @@ implementation {
         }
     }
 
-    event void AMSend.sendDone(message_t* msg, error_t err) {
+    event void DataSend.sendDone(message_t* msg, error_t err) {
         if (err == SUCCESS) {
             if(call PacketAcknowledgements.wasAcked(msg)) {
                 headPos = cal_pos(headPos, 1);
@@ -156,6 +157,12 @@ implementation {
         }
         else
             report_problem();
+    }
+
+    event void IntervalAckSend.sendDone(message_t* msg, error_t err) {
+        if (err != SUCCESS) {
+            report_problem();
+        }
     }
 
     event void ReadTemperature.readDone(error_t err, uint16_t data) {
@@ -211,6 +218,7 @@ implementation {
 
     event message_t* ReceiveInterval.receive(message_t* msg, void* payload, uint8_t len) {
         Interval_Msg *rcvPayload;
+        Ack_Interval_Msg* sndPayload;
         report_received();
         // update interval
         if (len != sizeof(Interval_Msg)) {
@@ -220,10 +228,16 @@ implementation {
         }
         rcvPayload = (Interval_Msg*)payload;
         local.interval = rcvPayload->interval;
+        report_received();
         call TimerRead.stop();
         start_read_timer();
-
-        report_received();
+        sndPayload = (Ack_Interval_Msg*)(call Packet.getPayload(&sendBuf, sizeof(Ack_Interval_Msg)));
+        sndPayload -> isReceived = 1;
+        sendBusy = TRUE;
+        if (call IntervalAckSend.send(ROOT_ID, &sendBuf, sizeof(Ack_Interval_Msg)) != SUCCESS) {
+            call Leds.led0Toggle();
+        }
+        
         return msg;
     }
 
@@ -239,7 +253,6 @@ implementation {
         }
         rcvPayload = (Sensor_Msg*)payload;
         // add to queue
-        // TODO: need test
         memcpy(localQueue + tailPos, rcvPayload, sizeof(Sensor_Msg));
         tailPos = cal_pos(tailPos, 1);
         if (tailPos == headPos) {

@@ -1,11 +1,14 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 //group_id : 21
-enum {AM_SENSOR_MSG = 85,
+enum {
+    AM_SENSOR_MSG = 85,
     AM_INTERVAL_MSG = 105,
+    AM_INTERVAL_ACK_MSG = 124,
     NREADINGS = 3,
     SENSOR_TYPES = 3,
-    DEFAULT_INTERVAL = 500};
+    DEFAULT_INTERVAL = 500
+};
 
 typedef nx_struct Sensor_Msg {
     nx_uint8_t nodeid;
@@ -21,4 +24,7 @@ typedef nx_struct Interval_Msg {
     nx_uint16_t interval;
 } Interval_Msg;
 
+typedef nx_struct Ack_Interval_Msg {
+    nx_uint8_t isReceived; 
+} Ack_Interval_Msg;
 #endif

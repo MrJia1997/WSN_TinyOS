@@ -26,7 +26,8 @@ implementation {
     components ActiveMessageC;
     App.Packet -> ActiveMessageC;
     App.PacketAcknowledgements -> ActiveMessageC;
-    App.AMSend -> ActiveMessageC.AMSend[AM_SENSOR_MSG];
+    App.DataSend -> ActiveMessageC.AMSend[AM_SENSOR_MSG];
+    App.IntervalAckSend -> ActiveMessageC.AMSend[AM_INTERVAL_ACK_MSG];
     App.ReceiveInterval -> ActiveMessageC.Receive[AM_INTERVAL_MSG];
     App.ReceiveSensorMsg -> ActiveMessageC.Receive[AM_SENSOR_MSG];
     App.RadioControl -> ActiveMessageC;
