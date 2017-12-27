@@ -111,8 +111,8 @@ implementation {
 
     task void send() {
         if (!sendBusy) {
-            // if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
-            //     call Leds.led0On();
+            if (call PacketAcknowledgements.requestAck(&sendBuf) != SUCCESS)
+                call Leds.led0On();
             sendBusy = TRUE;
             if (call ResultSend.send(ROOT_ID, &sendBuf, sizeof local) != SUCCESS) {
                 sendBusy = FALSE;
@@ -134,7 +134,7 @@ implementation {
             localSupport.sequence_number = lostSeq[lostSeqHead];
             memcpy(call SupportSend.getPayload(&sendBuf, sizeof(localSupport)), &localSupport, sizeof localSupport);
             // call PacketAcknowledgements.requestAck(&sendBuf);
-            if (call SupportSend.send(62, &sendBuf, sizeof local) != SUCCESS) {
+            if (call SupportSend.send(AM_BROADCAST_ADDR, &sendBuf, sizeof local) != SUCCESS) {
                 // call Leds.led1Toggle();
                 sendBusy = FALSE;
                 // post getLost();
@@ -167,7 +167,7 @@ implementation {
         lostSeqTail = 0;
         storageCount = 0;
         
-        call TimerSendSupport.startPeriodic(200);
+        call TimerSendSupport.startPeriodic(400);
         if (call RadioControl.start() != SUCCESS)
             call Leds.led0On();
     }
@@ -268,7 +268,7 @@ implementation {
         }
         
         // TODO: to be changed into 3
-        if (storageCount == 1) {
+        if (storageCount == 0x03) {
             if (data[seq - 1] == 0xFFFFFFFF) {
                 lostSeqPush(lostSeq[lostSeqHead]);    
             }
@@ -311,17 +311,20 @@ implementation {
         Random_Msg *rcvPayload;
         uint8_t source;
 
-        call Leds.led2Toggle();
+        // call Leds.led2Toggle();
 
         rcvPayload = (Random_Msg*)payload;
         seq = rcvPayload -> sequence_number;
         number = rcvPayload -> random_integer;
         source = call AMPacket.source(msg);
-        if (source == 62) 
-            storageCount = storageCount | 1;
-        else if (source == 63)
-            storageCount = storageCount | 2;
-
+        if (source == 62) {
+            call Leds.led0Toggle();
+            storageCount = storageCount | 0x01;
+        }
+        else if (source == 63) {
+            call Leds.led2Toggle();
+            storageCount = storageCount | 0x02;
+        }
         post handleSupportReceive();
         return msg;
     }
@@ -329,9 +332,9 @@ implementation {
     event void ResultSend.sendDone(message_t* msg, error_t err) {
         sendBusy = FALSE;
         if (err == SUCCESS) {
-            // if(call PacketAcknowledgements.wasAcked(msg) != SUCCESS) {
-            //     post send();
-            // }
+            if(call PacketAcknowledgements.wasAcked(msg) != SUCCESS) {
+                post send();
+            }
             // call Leds.led0Toggle();
             call Leds.led2Off();
         }
