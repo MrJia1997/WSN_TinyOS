@@ -1,6 +1,6 @@
 configuration StorageAppC {}
 implementation {
-    components MainC
+    components MainC;
     components StorageC as App;
     App.Boot -> MainC;
 

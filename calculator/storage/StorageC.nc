@@ -16,20 +16,22 @@ implementation {
     bool RadioBusy;
     message_t pkt;
     Data_Msg RequestData;
-    uint32_t DataArray[DATA_NUMBER+1]
+    uint16_t seq;
+    uint32_t data;
+    uint32_t DataArray[DATA_NUMBER+1];
 
     void report_problem() { call Leds.led2Toggle(); }
 
     event void Boot.booted() {
+        uint16_t i;
         RadioBusy = FALSE;
-        uint16_t i = 0;
         for( i = 0; i < DATA_NUMBER; i++)
         {
             DataArray[i] = 0xffffffff;
         }
-
         call RadioControl.start();
     }
+
     event void RadioControl.startDone(error_t err) {
         if (err != SUCCESS) {
             call RadioControl.start();
@@ -37,62 +39,67 @@ implementation {
     }
     event void RadioControl.stopDone(error_t err) { }
     
+    task void handleRandomMsg() {
+        DataArray[seq] = data;
+        call Leds.led1Toggle();
+    }
+
     //receive data from TA's node
     event message_t* DataReceive.receive(message_t* msg, void* payload, uint8_t len) {
         Data_Msg* rcvPayload;
-        Data_Msg* sndPayload;
-
         rcvPayload = (Data_Msg*)payload;
-        sndPayload = (Data_Msg*)(call Packet.getPayload(&pkt, sizeof(Data_Msg)));
-
-        if (sndPayload == NULL) {
-            report_problem();
-            return NULL;
-        }
-        memcpy(sndPayload, rcvPayload ,sizeof(Sensor_Msg));
         // add data into array
-        DataArray[rcvPayload->sequence_number] = DataArray[rcvPayload->random_integer]
+        seq = rcvPayload -> sequence_number;
+        data = rcvPayload -> random_integer;
+        DataArray[seq] = data;
+        //post handleRandomMsg();
         return msg;
     }
 
     task void send()
     {
-        Request_Msg* sndPayload;
+        Data_Msg* sndPayload;
         sndPayload = (Data_Msg*)(call Packet.getPayload(&pkt, sizeof(Data_Msg)));
         if (sndPayload == NULL) {
             report_problem();
-            return NULL;
+            return;
         }
         memcpy(sndPayload, &RequestData ,sizeof(Data_Msg));
-        if (call PacketAcknowledgements.requestAck(&pkt) != SUCCESS)
-            report_problem();
         RadioBusy = TRUE;
-        if(call AMSend.send(GROUP_ID, &pkt, sizeof(Data_Msg)) != SUCCESS)
+        if(call AMSend.send(61, &pkt, sizeof(Data_Msg)) != SUCCESS)
+        {
+            call Leds.led0Toggle();
             post send();
+        }
+        
+    }
 
+    task void handleRequestMsg() {
+        /*if(DataArray[RequestData.sequence_number] == 0xffffffff || RequestData.sequence_number == 0)
+        {
+            call Leds.led1Toggle();
+            return;
+        }*/
+        RequestData.random_integer = DataArray[RequestData.sequence_number]; 
+        post send();
     }
 
     //receive request from base node
      event message_t* RequestReceive.receive(message_t* msg, void* payload, uint8_t len) {
-        Request_Msg* rcvPayload；
+        Request_Msg* rcvPayload;
         rcvPayload = (Request_Msg*)payload;
         RequestData.sequence_number = rcvPayload->sequence_number;
-        RequestData.random_integer = DataArray[rcvPayload->sequence_number];
-        post send();
+        post handleRequestMsg();
         return msg;
     }
 
+
+
     event void AMSend.sendDone(message_t* msg, error_t err) {
         if (&pkt == msg) {
-            RadioBusy = FALSE;
-            call Leds.led1Toggle();
-        }
-        if (err == SUCCESS) {
-            if(call PacketAcknowledgements.wasAcked(msg)) {
-                RadioBusy = FALSE;
+                if (err == SUCCESS) {
+                    RadioBusy = FALSE;
             }
         }
     }
-
-    
 }
