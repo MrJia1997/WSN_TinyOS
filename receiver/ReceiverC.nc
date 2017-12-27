@@ -86,6 +86,7 @@ implementation {
 
     event message_t* IntervalAckReceive.receive(message_t* msg, void* payload, uint8_t len) {
         nodeCount++;
+        return msg;
     }
 
     event message_t* SerialReceive.receive(message_t* msg, void* payload, uint8_t len) {
